@@ -15,7 +15,6 @@
 
 
 # To do:
-# remove sys.argv and replae with optparse
 # add exception handling to see if request module errors out
 # fix error "UnicodeEncodeError: 'ascii' codec can't encode characters in position 9239-9240: ordinal not in range(128)"
 
@@ -24,10 +23,17 @@ import urllib2
 import sys
 import os
 import requests
+import argparse
 
+parser = argparse.ArgumentParser(description='Script to extract pillage files when an LFI is discovered')
+parser.add_argument('-p', required=True, dest="prefix", help="specifies the prefix of the LFI",
+                    action="store")
+parser.add_argument('-f', required=True, dest="file", help="specifies the text file of the filenames you wish to enumerate with the lfi",
+                    action="store")
 
-prefix = sys.argv[1]
-file = open(sys.argv[2], 'r')
+args = parser.parse_args()
+prefix = args.prefix
+file = open(args.file, 'r')
 
 # The variable "localfilename" which is used below includes the subdirectories and the filename of the local file pillaged
 
