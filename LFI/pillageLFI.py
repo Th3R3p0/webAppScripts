@@ -16,7 +16,6 @@
 
 # To do:
 # add exception handling to see if request module errors out
-# fix error "UnicodeEncodeError: 'ascii' codec can't encode characters in position 9239-9240: ordinal not in range(128)"
 
 import urllib
 import urllib2
@@ -50,7 +49,7 @@ def checkdir(localfilename):
 
 def newfile(localfilename, content):
     page = open("pillaged/"+localfilename+ ".html", 'w+')
-    page.write(content)
+    page.write(content.encode('utf-8'))
     page.close
 
 # This function adds a link to the pillaged file to an index.html file
